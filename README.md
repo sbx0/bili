@@ -4,7 +4,7 @@
 A new Flutter project.
 
 ## 截图
-<img src="../master/github/img/index_v_2019_03_30.png" height="200" alt="首页"/>
+<img src="../master/github/img/index_v_2019_03_30.png" height="300" alt="首页"/>
 
 ## Getting Started
 
