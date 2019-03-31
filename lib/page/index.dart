@@ -1,5 +1,9 @@
+import 'package:bili/entity/demand.dart';
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
+import 'dart:convert';
 
+// 首页
 class Index extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -46,6 +50,9 @@ class TopBar extends StatelessWidget {
   }
 }
 
+// TODO 下拉刷新
+
+// 身体
 class Body extends StatefulWidget {
   @override
   _Body createState() {
@@ -53,10 +60,52 @@ class Body extends StatefulWidget {
   }
 }
 
+// 身体
 class _Body extends State with SingleTickerProviderStateMixin {
   TabController _tabController;
-  ScrollController _scrollController;
   List<String> tabs;
+  int page = 0;
+  List<dynamic> objects;
+  List<Demand> cache;
+  List<Demand> datas;
+  List<Widget> videos = [];
+
+  void _getData(int p) async {
+    try {
+      Response response = await Dio().get(
+          'http://zb.sbx0.cn/demand/normal/list?page=' +
+              p.toString() +
+              '&size=3&attribute=time&direction=DESC');
+      objects = json.decode(response.toString())['objects'];
+      if (objects != null) {
+        datas = objects.map((json) => Demand.fromJson(json)).toList();
+        if (p != 1)
+          cache += datas;
+        else
+          cache = datas;
+        videos = [];
+        for (Demand d in cache) {
+          videos.insert(
+            0,
+            new VideoCard(d.cover, d.time,
+                'http://zb.sbx0.cn/' + d.poster.avatar, d.title),
+          );
+        }
+        setState(() {});
+        page = p;
+      }
+    } catch (e) {
+      print(e);
+    }
+  }
+
+  Future<void> _onRefresh() async {
+    await Future.delayed(Duration(seconds: 1), () {
+      print('refresh' + page.toString());
+      _getData(++page);
+      setState(() {});
+    });
+  }
 
   @override
   void initState() {
@@ -70,65 +119,53 @@ class _Body extends State with SingleTickerProviderStateMixin {
       length: 4,
       vsync: this,
     );
-    _scrollController = new ScrollController();
+    _getData(page + 1);
     super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      controller: _scrollController,
-      child: Column(
-        children: <Widget>[
-          new Container(
-            foregroundDecoration: new BoxDecoration(
-              border: new Border(
-                bottom: BorderSide(
-                    color: Colors.grey, width: 0.1, style: BorderStyle.solid),
-              ),
-            ),
-            child: new Center(
-              child: TabBar(
-                controller: _tabController,
-                isScrollable: true,
-                labelColor: Colors.red,
-                indicatorColor: Colors.pink,
-                indicatorSize: TabBarIndicatorSize.tab,
-                indicatorWeight: 3,
-                unselectedLabelColor: Color(0xff666666),
-                labelStyle: TextStyle(fontSize: 16.0),
-                tabs: tabs.map((item) {
-                  return Tab(
-                    text: item,
-                  );
-                }).toList(),
-              ),
-            ),
+    List<Widget> body = [
+      new Container(
+        foregroundDecoration: new BoxDecoration(
+          border: new Border(
+            bottom: BorderSide(
+                color: Colors.grey, width: 0.1, style: BorderStyle.solid),
           ),
-          new VideoCard(
-            'https://i0.hdslb.com/bfs/archive/20d550e2843f3cb4bb1293c857357d570da87d87.jpg@200w_125h.webp',
-            '06:21 508 观看 1 弹幕',
-            'https://i1.hdslb.com/bfs/face/c63ebeed7d49967e2348ef953b539f8de90c5140.jpg@160w_160h.webp',
-            '比《复联4》更虐！漫威不敢拍的复联10次团灭',
+        ),
+        child: new Center(
+          child: TabBar(
+            controller: _tabController,
+            isScrollable: true,
+            labelColor: Colors.red,
+            indicatorColor: Colors.pink,
+            indicatorSize: TabBarIndicatorSize.tab,
+            indicatorWeight: 3,
+            unselectedLabelColor: Color(0xff666666),
+            labelStyle: TextStyle(fontSize: 16.0),
+            tabs: tabs.map((item) {
+              return Tab(
+                text: item,
+              );
+            }).toList(),
           ),
-          new VideoCard(
-            'https://i0.hdslb.com/bfs/archive/6a7d539c3d71c516fa9b06a692d175bdce84a711.jpg@320w_200h.webp',
-            '06:21 508 观看 1 弹幕',
-            'http://zb.sbx0.cn/upload/image/20190328144254868.jpg',
-            '随机挑战！这是我做过最后悔的决定了！',
-          ),
-          new VideoCard(
-            'https://i0.hdslb.com/bfs/archive/6a7d539c3d71c516fa9b06a692d175bdce84a711.jpg@320w_200h.webp',
-            '06:21 508 观看 1 弹幕',
-            'http://zb.sbx0.cn/upload/image/20190328144254868.jpg',
-            '随机挑战！这是我做过最后悔的决定了！',
-          )
-        ],
+        ),
       ),
-    );
+    ];
+
+    body.addAll(videos);
+
+    return RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: new SingleChildScrollView(
+          child: Column(
+            children: body,
+          ),
+        ));
   }
 }
 
+// 视频卡
 class VideoCard extends StatelessWidget {
   final String cover;
   final String status;
