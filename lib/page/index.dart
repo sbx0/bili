@@ -50,8 +50,6 @@ class TopBar extends StatelessWidget {
   }
 }
 
-// TODO 下拉刷新
-
 // 身体
 class Body extends StatefulWidget {
   @override
@@ -64,21 +62,38 @@ class Body extends StatefulWidget {
 class _Body extends State with SingleTickerProviderStateMixin {
   TabController _tabController;
   List<String> tabs;
-  int page = 0;
   List<dynamic> objects;
   List<Demand> cache;
   List<Demand> datas;
   List<Widget> videos = [];
+  int page = 0;
+  int size = 3;
+  int temp = 0;
 
   void _getData(int p) async {
     try {
       Response response = await Dio().get(
           'http://zb.sbx0.cn/demand/normal/list?page=' +
               p.toString() +
-              '&size=3&attribute=time&direction=DESC');
+              '&size=' +
+              size.toString() +
+              '&attribute=time&direction=ASC');
       objects = json.decode(response.toString())['objects'];
       if (objects != null) {
         datas = objects.map((json) => Demand.fromJson(json)).toList();
+        if (datas.length < size) {
+          if (temp == 0) {
+            temp = datas.length;
+          } else {
+            for (int i = 0; i < temp; i++) {
+              datas.removeLast();
+            }
+          }
+          page = p - 1;
+        } else {
+          temp = 0;
+          page = p;
+        }
         if (p != 1)
           cache += datas;
         else
@@ -92,7 +107,8 @@ class _Body extends State with SingleTickerProviderStateMixin {
           );
         }
         setState(() {});
-        page = p;
+      } else {
+        page = p - 1;
       }
     } catch (e) {
       print(e);
@@ -101,9 +117,7 @@ class _Body extends State with SingleTickerProviderStateMixin {
 
   Future<void> _onRefresh() async {
     await Future.delayed(Duration(seconds: 1), () {
-      print('refresh' + page.toString());
       _getData(++page);
-      setState(() {});
     });
   }
 
